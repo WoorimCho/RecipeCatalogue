@@ -1,0 +1,35 @@
+services:
+  mysql:
+    image: 'mysql:8.4'
+    environment:
+      - 'MYSQL_DATABASE=recipe_catalog'
+      - 'MYSQL_PASSWORD=secret'
+      - 'MYSQL_ROOT_PASSWORD=verysecret'
+      - 'MYSQL_USER=myuser'
+    ports:
+      # Host 3308 so the monolith (3306) and IngredientCatelog (3307) can run alongside.
+      - '3308:3306'
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-pverysecret"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 20s
+
+  # The service itself. Gated behind the "full" profile so that a bare
+  # `docker compose up` (and Spring Boot's docker-compose dev support, which runs
+  # while you `bootRun` from the IDE) starts only MySQL. Run the whole stack with:
+  #   docker compose --profile full up --build
+  app:
+    profiles: ["full"]
+    build:
+      context: .
+    environment:
+      - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/recipe_catalog?allowPublicKeyRetrieval=true&useSSL=false'
+      - 'SPRING_DATASOURCE_USERNAME=myuser'
+      - 'SPRING_DATASOURCE_PASSWORD=secret'
+    ports:
+      - '8083:8083'
+    depends_on:
+      mysql:
+        condition: service_healthy
