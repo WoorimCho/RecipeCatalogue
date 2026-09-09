@@ -1,0 +1,20 @@
+package com.example.recipecatalogue;
+
+import org.springframework.boot.test.context.TestConfiguration;
+import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
+import org.springframework.context.annotation.Bean;
+import org.testcontainers.mysql.MySQLContainer;
+import org.testcontainers.utility.DockerImageName;
+
+@TestConfiguration(proxyBeanMethods = false)
+class TestcontainersConfiguration {
+
+    // Pinned to 8.4 to match IngredientCatalogue / User / Projects/compose.yaml (and so
+    // an image bump to MySQL 9.x can't silently break the build).
+    @Bean
+    @ServiceConnection
+    MySQLContainer mysqlContainer() {
+        return new MySQLContainer(DockerImageName.parse("mysql:8.4"));
+    }
+
+}

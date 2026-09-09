@@ -1,0 +1,82 @@
+# RecipeCatalogue
+
+The catalogue of **recipes** — ordered steps with tools, structured ingredient
+lines, optional / replaceable ingredients with substitutes, and the shared tag
+vocabulary.
+
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-4.1.1-brightgreen)
+![Java](https://img.shields.io/badge/Java-17-orange)
+![Build](https://img.shields.io/badge/build-Gradle-blue)
+![DB](https://img.shields.io/badge/MySQL-8.4-blue)
+![Port](https://img.shields.io/badge/port-8083-lightgrey)
+
+> **Shared code** lives in [`../catalogue-common`](../catalogue-common) (Gradle
+> composite build): the `Tag` entity + its service/repo, `PageResponse`, the
+> RFC-9457 exception advice, the CSV reader, the Zipkin sender. The only
+> Recipe-specific tag code left here is `RecipeTagOwnerCleanup` (clears tags off
+> recipes before a delete/merge).
+
+## Model
+
+- **`Recipe`** — `id`, `name`, `creator`, `version`, `List<RecipeStep>`,
+  `List<RecipeIngredient>`, `Set<Tag>`.
+- **`RecipeStep`** — `position`, `text`, `Set<String> tools`.
+- **`RecipeIngredient`** — `ingredientId` (cross-service, **no FK**),
+  free-text `quantity` *(display)* **plus** structured **`amount`** + **`unit`**
+  (a `Unit` enum: MASS→g, VOLUME→ml, COUNT→no weight), `optional`,
+  `replaceable`, `List<IngredientReplacement>` (`ingredientId` and/or `recipeId`).
+- **`Tag`** — same as IngredientCatalogue (separate table).
+
+## API — `/api/recipes`
+
+| | |
+|---|---|
+| `GET /` | `?name=`, `?tag=` (+`?match=`), `?ingredientId=` (repeatable), paged |
+| `GET /random` | one random recipe from the filtered set (404 if none) |
+| `GET /{id}` | one |
+| `GET /by-ids?id=1&id=2` | batch resolve |
+| `POST /` / `PUT /{id}` | create / replace (`steps[]`, `ingredients[]` with `amount`/`unit`, `tags[]`) |
+| `DELETE /{id}` | delete |
+| `POST /import` (multipart `file`) | CSV skeleton import (`ImportResult`; steps added later via `PUT`) |
+
+`/api/tags` mirrors IngredientCatalogue. Contract at `/openapi.yaml`.
+`PageResponse<T>` envelope.
+
+## Run
+
+```bash
+cd .. && docker compose up --build recipe-catalogue
+
+docker compose up -d mysql        # local
+./gradlew bootRun
+```
+
+## Configuration (env)
+
+| Var | Default |
+|---|---|
+| `SPRING_DATASOURCE_URL` | `jdbc:mysql://localhost:3308/recipe_catalogue` |
+| `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | `myuser` / `secret` |
+| `SERVER_PORT` | `8083` |
+| `ZIPKIN_ENDPOINT` | `http://localhost:9411/api/v2/spans` |
+
+Flyway: `V1` full recipe model, `V2` structured-quantity columns.
+`ddl-auto=validate`.
+
+## Tests
+
+```bash
+./gradlew test   # Testcontainers MySQL: recipe/ingredient round-trip, tag
+                 # search, Unit conversions, structured-quantity validation,
+                 # random selector, CSV import, OpenAPI contract, ops
+```
+
+## Security
+
+No Spring Security — **every write is unauthenticated** (finding C2 in
+`../IngredientCatalogue/SECURITY.md`). Keep `:8083` off untrusted networks.
+
+## Status
+
+**v1 complete** + Phase 4 (structured quantities, random, CSV import). Consumed
+by the BFF for the composed view and all three calculators.

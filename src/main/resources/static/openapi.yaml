@@ -1,15 +1,15 @@
-openapi: 3.1.0
+openapi: 3.0.3
 info:
-  title: Recipe Catalog API
+  title: Recipe Catalogue API
   description: >
     Stores recipes and the reusable tags attached to them. A recipe has ordered
-    steps (each carrying the tools that step needs), the catalog entries it uses
+    steps (each carrying the tools that step needs), the catalogue entries it uses
     (each optionally with a quantity, and marked optional and/or replaceable with
     named substitutes), and tags. Recipes that share a name are variations, keyed
     on (name, creator, version). Cross-service references (ingredientId,
     replacement recipeId) are ids only, no foreign keys. Hand-maintained
     contract; keep it in step with the controllers under
-    `com.example.recipecatelog.Controllers`.
+    `com.example.recipecatalogue.Controllers`.
 
     Tag conventions: "recipe-exclusive" facets are ordinary tags, namespaced -
     `tool:beater`, `difficulty:easy`, `time:90min`, `category:snack`. Tags
@@ -45,7 +45,7 @@ paths:
           schema: { type: string, enum: [all, any], default: all }
         - name: ingredientId
           in: query
-          description: Repeatable. Recipes that use any of these catalog entries.
+          description: Repeatable. Recipes that use any of these catalogue entries.
           schema: { type: array, items: { type: integer, format: int64 } }
         - { $ref: '#/components/parameters/Page' }
         - { $ref: '#/components/parameters/Size' }
@@ -92,6 +92,31 @@ paths:
                 type: array
                 items: { $ref: '#/components/schemas/RecipeResponse' }
         '400': { $ref: '#/components/responses/Problem' }
+
+  /api/recipes/random:
+    get:
+      tags: [recipes]
+      summary: One random recipe, optionally from a filtered set (same filters as the list)
+      parameters:
+        - { name: name, in: query, schema: { type: string } }
+        - name: tag
+          in: query
+          description: Repeatable. Tag names to filter by.
+          schema: { type: array, items: { type: string } }
+        - name: match
+          in: query
+          schema: { type: string, enum: [all, any], default: all }
+        - name: ingredientId
+          in: query
+          description: Repeatable.
+          schema: { type: array, items: { type: integer, format: int64 } }
+      responses:
+        '200':
+          description: A random matching recipe
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RecipeResponse' }
+        '404': { $ref: '#/components/responses/Problem' }
 
   /api/recipes/{id}:
     parameters:
@@ -167,6 +192,33 @@ paths:
             application/json:
               schema: { $ref: '#/components/schemas/RecipeResponse' }
         '404': { $ref: '#/components/responses/Problem' }
+
+  /api/recipes/import:
+    post:
+      tags: [recipes]
+      summary: Bulk-create recipe skeletons from a CSV upload
+      description: >
+        `multipart/form-data`, part `file`. Header row required; columns
+        (case-insensitive): `name` (required), `creator`, `tags`
+        (`;`-separated), `ingredients` (`;`-separated `<id>` /
+        `<id>:<amount>:<unit>` / `<id>:<amount>:<unit>:opt` tokens). Steps are
+        not imported. Always 200 — per-row problems are in the body.
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file: { type: string, format: binary }
+      responses:
+        '200':
+          description: Import report
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ImportResult' }
+        '400': { $ref: '#/components/responses/Problem' }
 
   /api/tags:
     get:
@@ -339,24 +391,42 @@ components:
       type: object
       required: [ingredientId]
       properties:
-        ingredientId: { type: integer, format: int64, description: Id in the Ingredient catalog. }
-        quantity: { type: string, nullable: true, description: Free text ("2 cups", "a pinch"). }
+        ingredientId: { type: integer, format: int64, description: Id in the Ingredient catalogue. }
+        quantity: { type: string, nullable: true, description: 'Free text for display ("2 cups, packed", "a good pinch").' }
+        amount: { type: number, nullable: true, minimum: 0, description: 'Machine-readable quantity; requires `unit`. Feeds the calculators.' }
+        unit:
+          type: string
+          nullable: true
+          description: >
+            Unit for `amount` (lenient: `g`/`grams`, `kg`, `mg`, `oz`, `lb`,
+            `ml`, `l`, `tsp`/`teaspoon`, `tbsp`/`tablespoon`, `cup`, `fl_oz`,
+            `piece`, `clove`, `slice`, `pinch`). Must be present iff `amount` is.
         optional: { type: boolean, default: false }
-        replaceable: { type: boolean, default: false, description: If true, replacements must be non-empty. }
+        replaceable: { type: boolean, default: false, description: 'If true, replacements must be non-empty.' }
         replacements:
           type: array
           items: { $ref: '#/components/schemas/Replacement' }
+    # RecipeIngredientInput + the server-assigned id. Flattened (not `allOf`) so
+    # strict validators don't treat each branch as a closed object.
     RecipeIngredientOutput:
-      allOf:
-        - { $ref: '#/components/schemas/RecipeIngredientInput' }
-        - type: object
-          properties:
-            id: { type: integer, format: int64 }
+      type: object
+      required: [ingredientId]
+      properties:
+        id: { type: integer, format: int64 }
+        ingredientId: { type: integer, format: int64, description: Id in the Ingredient catalogue. }
+        quantity: { type: string, nullable: true, description: 'Free text for display.' }
+        amount: { type: number, nullable: true, description: 'Machine-readable quantity, paired with `unit`.' }
+        unit: { type: string, nullable: true, description: 'Lower-cased unit token, e.g. `g`, `cup`, `tbsp`.' }
+        optional: { type: boolean, default: false }
+        replaceable: { type: boolean, default: false, description: 'If true, replacements must be non-empty.' }
+        replacements:
+          type: array
+          items: { $ref: '#/components/schemas/Replacement' }
     Replacement:
       type: object
       required: [ingredientId]
       properties:
-        ingredientId: { type: integer, format: int64, description: The substitute catalog entry. }
+        ingredientId: { type: integer, format: int64, description: The substitute catalogue entry. }
         recipeId:
           type: integer
           format: int64
@@ -369,6 +439,19 @@ components:
         name: { type: string, maxLength: 100 }
         namespace: { type: string, maxLength: 60, nullable: true }
         description: { type: string, maxLength: 500, nullable: true }
+    ImportResult:
+      type: object
+      properties:
+        rows:     { type: integer, description: Data rows seen (header excluded). }
+        imported: { type: integer }
+        skipped:  { type: integer }
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              line:    { type: integer, format: int64, description: 1-based line number in the file. }
+              message: { type: string }
     TagResponse:
       type: object
       properties:
@@ -405,30 +488,36 @@ components:
           type: object
           additionalProperties: { type: string }
           description: Present on 400 validation failures — field name to message.
+    # Stable page envelope (`PageResponse<T>`) — hand-controlled, not Spring
+    # Data's internal `Page` serialization. Flattened (not `allOf` composed) so
+    # strict validators don't treat each branch as a closed object.
     PageRecipeResponse:
-      allOf:
-        - { $ref: '#/components/schemas/PageEnvelope' }
-        - type: object
-          properties:
-            content:
-              type: array
-              items: { $ref: '#/components/schemas/RecipeResponse' }
-    PageTagResponse:
-      allOf:
-        - { $ref: '#/components/schemas/PageEnvelope' }
-        - type: object
-          properties:
-            content:
-              type: array
-              items: { $ref: '#/components/schemas/TagResponse' }
-    PageEnvelope:
       type: object
-      description: Spring Data Page serialization (subset).
+      required: [content, page, size, totalElements, totalPages, first, last, numberOfElements, empty]
       properties:
+        content:
+          type: array
+          items: { $ref: '#/components/schemas/RecipeResponse' }
+        page: { type: integer, description: Zero-based index of this page. }
+        size: { type: integer, description: Requested page size. }
         totalElements: { type: integer, format: int64 }
         totalPages: { type: integer }
-        number: { type: integer }
-        size: { type: integer }
         first: { type: boolean }
         last: { type: boolean }
-        numberOfElements: { type: integer }
+        numberOfElements: { type: integer, description: Items actually on this page. }
+        empty: { type: boolean }
+    PageTagResponse:
+      type: object
+      required: [content, page, size, totalElements, totalPages, first, last, numberOfElements, empty]
+      properties:
+        content:
+          type: array
+          items: { $ref: '#/components/schemas/TagResponse' }
+        page: { type: integer, description: Zero-based index of this page. }
+        size: { type: integer, description: Requested page size. }
+        totalElements: { type: integer, format: int64 }
+        totalPages: { type: integer }
+        first: { type: boolean }
+        last: { type: boolean }
+        numberOfElements: { type: integer, description: Items actually on this page. }
+        empty: { type: boolean }
