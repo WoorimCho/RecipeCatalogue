@@ -23,8 +23,9 @@ vocabulary.
 - **`RecipeStep`** — `position`, `text`, `Set<String> tools`.
 - **`RecipeIngredient`** — `ingredientId` (cross-service, **no FK**),
   free-text `quantity` *(display)* **plus** structured **`amount`** + **`unit`**
-  (a `Unit` enum: MASS→g, VOLUME→ml, COUNT→no weight), `optional`,
-  `replaceable`, `List<IngredientReplacement>` (`ingredientId` and/or `recipeId`).
+  (a `Unit` enum: MASS→g, VOLUME→ml, COUNT→no weight — the BFF calculators bridge
+  VOLUME→mass using the ingredient's `densityGPerMl`), `optional`, `replaceable`,
+  `List<IngredientReplacement>` (`ingredientId` and/or `recipeId`).
 - **`Tag`** — same as IngredientCatalogue (separate table).
 
 ## API — `/api/recipes`
@@ -79,4 +80,6 @@ No Spring Security — **every write is unauthenticated** (finding C2 in
 ## Status
 
 **v1 complete** + Phase 4 (structured quantities, random, CSV import). Consumed
-by the BFF for the composed view and all three calculators.
+by the BFF (composed view + all three calculators) and written by
+`../recipe-crawler` on URL import (recipes tagged `source:imported`, `creator`
+`import:<host>`).
