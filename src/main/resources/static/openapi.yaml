@@ -345,7 +345,7 @@ components:
     Sort:
       name: sort
       in: query
-      description: '`property,(asc|desc)` — e.g. `name,asc`.'
+      description: '`property,(asc|desc)` — e.g. `name,asc`. Recipes sort on `name`, `creator` or `version`.'
       schema: { type: string }
 
   responses:

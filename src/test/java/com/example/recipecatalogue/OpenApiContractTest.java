@@ -91,6 +91,15 @@ class OpenApiContractTest {
     }
 
     @Test
+    void searchRecipesSorted_matchesContract() throws Exception {
+        mvc.perform(post("/api/recipes").contentType(MediaType.APPLICATION_JSON).content(FULL_RECIPE));
+
+        mvc.perform(get("/api/recipes?tag=cuisine:thai&sort=creator,desc"))
+                .andExpect(status().isOk())
+                .andExpect(openApi().isValid(validator));
+    }
+
+    @Test
     void createFullRecipe_matchesContract() throws Exception {
         mvc.perform(post("/api/recipes").contentType(MediaType.APPLICATION_JSON).content(FULL_RECIPE))
                 .andExpect(status().isCreated())
