@@ -32,7 +32,7 @@ vocabulary.
 
 | | |
 |---|---|
-| `GET /` | `?name=`, `?tag=` (+`?match=all\|any`), `?notTag=` (repeatable — exclude; ANDed with `tag`), `?ingredientId=` (repeatable), paged |
+| `GET /` | `?name=`, `?tag=` (+`?match=all\|any`), `?notTag=` (repeatable — exclude; ANDed with `tag`), `?ingredientId=` (repeatable), paged. Tag terms match a tag name **anywhere** — `?tag=vegan` finds `diet:vegan` recipes |
 | `GET /random` | one random recipe from the filtered set — same params incl. `?notTag=` (404 if none) |
 | `GET /{id}` | one |
 | `GET /by-ids?id=1&id=2` | batch resolve |

@@ -159,6 +159,9 @@ class TagSearchIntegrationTest {
         assertThat(total("?tag=cuisine:thai&tag=quick")).isEqualTo(1);
         assertThat(total("?tag=cuisine:thai&tag=quick&match=any")).isEqualTo(3);
         assertThat(total("?tag=cuisine:french")).isZero();
+        // a fragment matches the tag anywhere in its name (like the tag search)
+        assertThat(total("?tag=thai")).isEqualTo(2);
+        assertThat(total("?tag=thai&tag=quick")).isEqualTo(1);
     }
 
     @Test
@@ -175,6 +178,9 @@ class TagSearchIntegrationTest {
         assertThat(total("?notTag=diet:vegan&notTag=quick")).isZero();
         // normalised like every other tag param
         assertThat(total("?notTag=DIET:Vegan")).isEqualTo(1);
+        // a fragment excludes any tag containing it
+        assertThat(total("?notTag=vegan")).isEqualTo(1);
+        assertThat(total("?tag=quick&notTag=vega")).isEqualTo(1);
     }
 
     @Test

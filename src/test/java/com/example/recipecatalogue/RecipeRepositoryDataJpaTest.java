@@ -81,4 +81,16 @@ class RecipeRepositoryDataJpaTest {
                 RecipeSpecifications.hasAnyTag(List.of("cuisine:thai")), PageRequest.of(0, 10));
         assertThat(thaiOnly.getTotalElements()).isEqualTo(2);
     }
+
+    @Test
+    void tagSpecificationsMatchAFragmentAnywhereInTheName() {
+        // "thai" is a substring of "cuisine:thai"
+        assertThat(recipes.findAll(RecipeSpecifications.hasAnyTag(List.of("thai")), PageRequest.of(0, 10))
+                .getTotalElements()).isEqualTo(2);
+        assertThat(recipes.findAll(RecipeSpecifications.hasAllTags(List.of("thai", "quick")), PageRequest.of(0, 10))
+                .getContent()).singleElement().extracting(Recipe::getName).isEqualTo("Pad Thai");
+        // lacksAllTags: everything without a "thai"-ish tag -> neither seeded recipe
+        assertThat(recipes.findAll(RecipeSpecifications.lacksAllTags(List.of("thai")), PageRequest.of(0, 10))
+                .getTotalElements()).isZero();
+    }
 }
