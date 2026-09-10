@@ -162,6 +162,22 @@ class TagSearchIntegrationTest {
     }
 
     @Test
+    void excludeTagsDropRecipesCarryingThem() throws Exception {
+        create("Tofu Scramble", "diet:vegan", "quick");
+        create("Bacon Butty", "quick");
+        create("Garden Salad", "diet:vegan");
+
+        // everything "quick", minus the vegan ones -> just Bacon Butty
+        assertThat(total("?tag=quick&notTag=diet:vegan")).isEqualTo(1);
+        // pure exclusion: everything that isn't vegan
+        assertThat(total("?notTag=diet:vegan")).isEqualTo(1);
+        // several exclusions: carrying ANY of them drops the recipe
+        assertThat(total("?notTag=diet:vegan&notTag=quick")).isZero();
+        // normalised like every other tag param
+        assertThat(total("?notTag=DIET:Vegan")).isEqualTo(1);
+    }
+
+    @Test
     void mergeMovesLinksThenDeletesSourceTag() throws Exception {
         create("Green Curry", "thai");
         create("Pad See Ew", "cuisine:thai");

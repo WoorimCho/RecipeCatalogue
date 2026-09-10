@@ -47,6 +47,8 @@ public class RecipeController {
      * GET /api/recipes?name=curry
      * GET /api/recipes?tag=cuisine:thai&amp;tag=quick               has ALL of them (default)
      * GET /api/recipes?tag=cuisine:thai&amp;tag=quick&amp;match=any   has ANY of them
+     * GET /api/recipes?tag=quick&amp;notTag=diet:vegan               has "quick", NOT "diet:vegan"
+     * GET /api/recipes?notTag=cuisine:thai&amp;notTag=spicy          excludes both
      * GET /api/recipes?ingredientId=10&amp;ingredientId=20           uses any of those entries
      * GET /api/recipes?page=0&amp;size=20&amp;sort=name,asc
      * </pre>
@@ -56,11 +58,12 @@ public class RecipeController {
             @RequestParam(required = false) String name,
             @RequestParam(name = "tag", required = false) List<String> tags,
             @RequestParam(name = "match", defaultValue = "all") String match,
+            @RequestParam(name = "notTag", required = false) List<String> excludeTags,
             @RequestParam(name = "ingredientId", required = false) List<Long> ingredientIds,
             // Sort by id, not name: search uses SELECT DISTINCT with joins, and some
             // databases reject ordering by a column outside the distinct projection.
             @PageableDefault(size = 20, sort = "id") Pageable pageable) {
-        return PageResponse.of(recipeService.search(name, tags, match, ingredientIds, pageable));
+        return PageResponse.of(recipeService.search(name, tags, match, excludeTags, ingredientIds, pageable));
     }
 
     /**
@@ -69,6 +72,7 @@ public class RecipeController {
      * <pre>
      * GET /api/recipes/random
      * GET /api/recipes/random?tag=cuisine:thai&amp;match=any&amp;ingredientId=10
+     * GET /api/recipes/random?notTag=diet:vegan
      * </pre>
      */
     @GetMapping("/random")
@@ -76,8 +80,9 @@ public class RecipeController {
             @RequestParam(required = false) String name,
             @RequestParam(name = "tag", required = false) List<String> tags,
             @RequestParam(name = "match", defaultValue = "all") String match,
+            @RequestParam(name = "notTag", required = false) List<String> excludeTags,
             @RequestParam(name = "ingredientId", required = false) List<Long> ingredientIds) {
-        return recipeService.random(name, tags, match, ingredientIds);
+        return recipeService.random(name, tags, match, excludeTags, ingredientIds);
     }
 
     @GetMapping("/{id}")

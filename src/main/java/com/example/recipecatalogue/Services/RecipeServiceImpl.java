@@ -46,8 +46,9 @@ public class RecipeServiceImpl implements RecipeService {
     @Override
     @Transactional(readOnly = true)
     public Page<RecipeResponse> search(String name, Collection<String> tags, String match,
+                                       Collection<String> excludeTags,
                                        Collection<Long> ingredientIds, Pageable pageable) {
-        Specification<Recipe> spec = buildSpec(name, tags, match, ingredientIds);
+        Specification<Recipe> spec = buildSpec(name, tags, match, excludeTags, ingredientIds);
         Page<Recipe> page = spec == null
                 ? recipeRepository.findAll(pageable)
                 : recipeRepository.findAll(spec, pageable);
@@ -57,8 +58,9 @@ public class RecipeServiceImpl implements RecipeService {
     @Override
     @Transactional(readOnly = true)
     public RecipeResponse random(String name, Collection<String> tags, String match,
+                                 Collection<String> excludeTags,
                                  Collection<Long> ingredientIds) {
-        Specification<Recipe> spec = buildSpec(name, tags, match, ingredientIds);
+        Specification<Recipe> spec = buildSpec(name, tags, match, excludeTags, ingredientIds);
         long count = spec == null ? recipeRepository.count() : recipeRepository.count(spec);
         if (count == 0) {
             throw new NotFoundException("no recipe matches");
@@ -73,6 +75,7 @@ public class RecipeServiceImpl implements RecipeService {
 
     /** The AND of every present filter, or {@code null} when there are none. Shared by search + random. */
     private Specification<Recipe> buildSpec(String name, Collection<String> tags, String match,
+                                            Collection<String> excludeTags,
                                             Collection<Long> ingredientIds) {
         List<Specification<Recipe>> parts = new ArrayList<>();
         if (StringUtils.hasText(name)) {
@@ -81,14 +84,15 @@ public class RecipeServiceImpl implements RecipeService {
         if (ingredientIds != null && !ingredientIds.isEmpty()) {
             parts.add(RecipeSpecifications.usesAnyIngredient(ingredientIds));
         }
-        Set<String> tagNames = tags == null ? Set.of() : tags.stream()
-                .map(TagService::normalise)
-                .filter(StringUtils::hasText)
-                .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<String> tagNames = normaliseTags(tags);
         if (!tagNames.isEmpty()) {
             parts.add("any".equalsIgnoreCase(match)
                     ? RecipeSpecifications.hasAnyTag(tagNames)
                     : RecipeSpecifications.hasAllTags(tagNames));
+        }
+        Set<String> excludeNames = normaliseTags(excludeTags);
+        if (!excludeNames.isEmpty()) {
+            parts.add(RecipeSpecifications.lacksAllTags(excludeNames));
         }
         if (parts.isEmpty()) {
             return null;
@@ -98,6 +102,13 @@ public class RecipeServiceImpl implements RecipeService {
             spec = spec.and(parts.get(i));
         }
         return spec;
+    }
+
+    private static Set<String> normaliseTags(Collection<String> raw) {
+        return raw == null ? Set.of() : raw.stream()
+                .map(TagService::normalise)
+                .filter(StringUtils::hasText)
+                .collect(Collectors.toCollection(LinkedHashSet::new));
     }
 
     @Override

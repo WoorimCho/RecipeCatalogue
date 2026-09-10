@@ -31,10 +31,12 @@ public class TagController {
     }
 
     /**
-     * List / autocomplete tags.
+     * List / search / autocomplete tags. {@code prefix} is a misnomer kept for
+     * compatibility — it matches the fragment <em>anywhere</em> in the name
+     * (case-insensitive), so {@code ?prefix=thai} also finds {@code cuisine:thai}.
      * <pre>
      * GET /api/tags
-     * GET /api/tags?prefix=qu          name starts with "qu" (autocomplete)
+     * GET /api/tags?prefix=thai        name contains "thai" (search / autocomplete)
      * GET /api/tags?namespace=cuisine  every tag in the "cuisine" namespace
      * </pre>
      */

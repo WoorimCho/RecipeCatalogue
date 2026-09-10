@@ -15,10 +15,12 @@ public interface RecipeService {
      * List recipes, optionally filtered. All present filters are ANDed.
      *
      * @param name          case-insensitive substring of the recipe name
-     * @param tags          tag names; {@code match} = "all" (default) or "any"
+     * @param tags          tag names to require; {@code match} = "all" (default) or "any"
+     * @param excludeTags    tag names to exclude — a recipe carrying any of these is dropped
      * @param ingredientIds recipes that use any of these catalogue entries
      */
     Page<RecipeResponse> search(String name, Collection<String> tags, String match,
+                                Collection<String> excludeTags,
                                 Collection<Long> ingredientIds, Pageable pageable);
 
     /**
@@ -26,6 +28,7 @@ public interface RecipeService {
      * select. 404 if nothing matches.
      */
     RecipeResponse random(String name, Collection<String> tags, String match,
+                          Collection<String> excludeTags,
                           Collection<Long> ingredientIds);
 
     RecipeResponse get(long id);

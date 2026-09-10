@@ -32,15 +32,16 @@ vocabulary.
 
 | | |
 |---|---|
-| `GET /` | `?name=`, `?tag=` (+`?match=`), `?ingredientId=` (repeatable), paged |
-| `GET /random` | one random recipe from the filtered set (404 if none) |
+| `GET /` | `?name=`, `?tag=` (+`?match=all\|any`), `?notTag=` (repeatable — exclude; ANDed with `tag`), `?ingredientId=` (repeatable), paged |
+| `GET /random` | one random recipe from the filtered set — same params incl. `?notTag=` (404 if none) |
 | `GET /{id}` | one |
 | `GET /by-ids?id=1&id=2` | batch resolve |
 | `POST /` / `PUT /{id}` | create / replace (`steps[]`, `ingredients[]` with `amount`/`unit`, `tags[]`) |
 | `DELETE /{id}` | delete |
 | `POST /import` (multipart `file`) | CSV skeleton import (`ImportResult`; steps added later via `PUT`) |
 
-`/api/tags` mirrors IngredientCatalogue. Contract at `/openapi.yaml`.
+`/api/tags` mirrors IngredientCatalogue (`?prefix=` is a case-insensitive
+**substring** match — "thai" finds "cuisine:thai"). Contract at `/openapi.yaml`.
 `PageResponse<T>` envelope.
 
 ## Run

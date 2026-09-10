@@ -43,6 +43,14 @@ paths:
           in: query
           description: '`all` (default) requires every tag; `any` requires at least one.'
           schema: { type: string, enum: [all, any], default: all }
+        - name: notTag
+          in: query
+          description: >-
+            Repeatable. Tag names to exclude — a recipe carrying any of these is
+            dropped. ANDed with `tag`, so `tag=quick&notTag=diet:vegan` is
+            "quick but not vegan".
+          schema: { type: array, items: { type: string } }
+          example: ["diet:vegan"]
         - name: ingredientId
           in: query
           description: Repeatable. Recipes that use any of these catalogue entries.
@@ -106,6 +114,10 @@ paths:
         - name: match
           in: query
           schema: { type: string, enum: [all, any], default: all }
+        - name: notTag
+          in: query
+          description: Repeatable. Tag names to exclude (carrying any drops the recipe).
+          schema: { type: array, items: { type: string } }
         - name: ingredientId
           in: query
           description: Repeatable.
@@ -223,11 +235,14 @@ paths:
   /api/tags:
     get:
       tags: [tags]
-      summary: List / autocomplete tags
+      summary: List / search / autocomplete tags
       parameters:
         - name: prefix
           in: query
-          description: Name starts with this (autocomplete).
+          description: >-
+            Case-insensitive substring of the tag name — matches anywhere, not
+            just the start (the name is kept for compatibility). e.g. "thai"
+            finds "cuisine:thai".
           schema: { type: string }
         - name: namespace
           in: query

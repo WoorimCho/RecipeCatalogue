@@ -2,6 +2,8 @@ package com.example.recipecatalogue.Repositories;
 
 import com.example.recipecatalogue.Model.Recipe;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import org.springframework.data.jpa.domain.Specification;
 
 import java.util.Collection;
@@ -46,6 +48,21 @@ public final class RecipeSpecifications {
                 all = cb.and(all, cb.equal(root.join("tags").get("name"), name));
             }
             return all;
+        };
+    }
+
+    /**
+     * Recipes carrying <em>none</em> of the given tag names — "not vegan, not
+     * spicy". A {@code NOT IN (subquery)} rather than a negated join, so it
+     * doesn't disturb the main query's joins or its {@code distinct}.
+     */
+    public static Specification<Recipe> lacksAllTags(Collection<String> tagNames) {
+        return (root, q, cb) -> {
+            Subquery<Long> tagged = q.subquery(Long.class);
+            Root<Recipe> other = tagged.from(Recipe.class);
+            tagged.select(other.get("id"))
+                    .where(other.join("tags").get("name").in(tagNames));
+            return cb.not(root.get("id").in(tagged));
         };
     }
 }
