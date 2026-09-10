@@ -21,8 +21,9 @@ vocabulary.
 - **`Recipe`** — `id`, `name`, `creator`, `version`, `List<RecipeStep>`,
   `List<RecipeIngredient>`, `Set<Tag>`.
 - **`RecipeStep`** — `position`, `text`, `Set<String> tools`.
-- **`RecipeIngredient`** — `ingredientId` (cross-service, **no FK**),
-  free-text `quantity` *(display)* **plus** structured **`amount`** + **`unit`**
+- **`RecipeIngredient`** — `ingredientId` (cross-service, **no FK**; must be a
+  **positive** id — see validation below), free-text `quantity` *(display)*
+  **plus** structured **`amount`** + **`unit`**
   (a `Unit` enum: MASS→g, VOLUME→ml, COUNT→no weight — the BFF calculators bridge
   VOLUME→mass using the ingredient's `densityGPerMl`), `optional`, `replaceable`,
   `List<IngredientReplacement>` (`ingredientId` and/or `recipeId`).
@@ -39,6 +40,12 @@ vocabulary.
 | `POST /` / `PUT /{id}` | create / replace (`steps[]`, `ingredients[]` with `amount`/`unit`, `tags[]`) |
 | `DELETE /{id}` | delete |
 | `POST /import` (multipart `file`) | CSV skeleton import (`ImportResult`; steps added later via `PUT`) |
+
+**Validation** (create / replace / each CSV row): a recipe needs **≥ 1
+ingredient** (empty → 400 "a recipe needs at least one ingredient"); every
+`ingredientId` (lines *and* replacements) must be **positive** (`0` / negative →
+400). Existence of the referenced ingredient is enforced at the UI, not here —
+the catalogues stay decoupled (no RecipeCatalogue → IngredientCatalogue call).
 
 `/api/tags` mirrors IngredientCatalogue (`?prefix=` is a case-insensitive
 **substring** match — "thai" finds "cuisine:thai"). Contract at `/openapi.yaml`.
@@ -69,9 +76,9 @@ Flyway: `V1` full recipe model, `V2` structured-quantity columns.
 
 ```bash
 ./gradlew test   # Testcontainers MySQL: recipe/ingredient round-trip, tag
-                 # search, Unit conversions, structured-quantity validation,
-                 # random selector, CSV import, OpenAPI contract, ops,
-                 # list-endpoint query count
+                 # search, Unit conversions, structured-quantity + ingredient-
+                 # count + positive-id validation, random selector, CSV import,
+                 # OpenAPI contract, ops, list-endpoint query count
 ```
 
 ## Performance

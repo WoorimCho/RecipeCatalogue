@@ -113,12 +113,32 @@ class TagSearchIntegrationTest {
     }
 
     @Test
+    void recipeWithNoIngredientsIsRejected() throws Exception {
+        mvc.perform(post("/api/recipes").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Empty\"}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/recipes").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Empty\",\"ingredients\":[]}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void nonPositiveIngredientIdIsRejected() throws Exception {
+        mvc.perform(post("/api/recipes").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Bad\",\"ingredients\":[{\"ingredientId\":0}]}"))
+                .andExpect(status().isBadRequest());
+        mvc.perform(post("/api/recipes").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Bad\",\"ingredients\":[{\"ingredientId\":-5}]}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
     void sameNameSameCreatorGetsNextVersion() throws Exception {
         String v1 = mvc.perform(post("/api/recipes").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Focaccia\"}"))
+                        .content("{\"name\":\"Focaccia\",\"ingredients\":[{\"ingredientId\":1}]}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
         String v2 = mvc.perform(post("/api/recipes").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Focaccia\"}"))
+                        .content("{\"name\":\"Focaccia\",\"ingredients\":[{\"ingredientId\":1}]}"))
                 .andExpect(status().isCreated()).andReturn().getResponse().getContentAsString();
 
         assertThat(firstMatch(VERSION, v1)).isEqualTo(1);
@@ -242,7 +262,8 @@ class TagSearchIntegrationTest {
     private void create(String name, String... tags) throws Exception {
         String tagArray = String.join(",", Arrays.stream(tags).map(t -> "\"" + t + "\"").toList());
         mvc.perform(post("/api/recipes").contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"" + name + "\",\"tags\":[" + tagArray + "]}"))
+                        .content("{\"name\":\"" + name + "\",\"ingredients\":[{\"ingredientId\":1}],"
+                                + "\"tags\":[" + tagArray + "]}"))
                 .andExpect(status().isCreated());
     }
 

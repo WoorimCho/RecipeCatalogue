@@ -371,6 +371,8 @@ components:
           items: { $ref: '#/components/schemas/RecipeStep' }
         ingredients:
           type: array
+          minItems: 1
+          description: At least one is required — a recipe with no ingredients is rejected (400).
           items: { $ref: '#/components/schemas/RecipeIngredientInput' }
         tags:
           type: array
@@ -406,7 +408,7 @@ components:
       type: object
       required: [ingredientId]
       properties:
-        ingredientId: { type: integer, format: int64, description: Id in the Ingredient catalogue. }
+        ingredientId: { type: integer, format: int64, minimum: 1, description: 'Id of an existing Ingredient-catalogue entry (must be positive).' }
         quantity: { type: string, nullable: true, description: 'Free text for display ("2 cups, packed", "a good pinch").' }
         amount: { type: number, nullable: true, minimum: 0, description: 'Machine-readable quantity; requires `unit`. Feeds the calculators.' }
         unit:
@@ -441,7 +443,7 @@ components:
       type: object
       required: [ingredientId]
       properties:
-        ingredientId: { type: integer, format: int64, description: The substitute catalogue entry. }
+        ingredientId: { type: integer, format: int64, minimum: 1, description: 'Id of an existing substitute Ingredient-catalogue entry (must be positive).' }
         recipeId:
           type: integer
           format: int64

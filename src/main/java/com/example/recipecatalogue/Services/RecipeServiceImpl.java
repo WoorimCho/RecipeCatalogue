@@ -177,6 +177,9 @@ public class RecipeServiceImpl implements RecipeService {
     }
 
     private void apply(Recipe recipe, RecipeRequest request) {
+        if (request.ingredientsOrEmpty().isEmpty()) {
+            throw new IllegalArgumentException("a recipe needs at least one ingredient");
+        }
         recipe.replaceSteps(buildSteps(request.stepsOrEmpty()));
         recipe.replaceIngredients(buildIngredients(request.ingredientsOrEmpty()));
         recipe.replaceTags(tagService.resolve(request.tagsOrEmpty()));
