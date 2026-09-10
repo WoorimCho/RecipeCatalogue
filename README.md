@@ -69,8 +69,20 @@ Flyway: `V1` full recipe model, `V2` structured-quantity columns.
 ```bash
 ./gradlew test   # Testcontainers MySQL: recipe/ingredient round-trip, tag
                  # search, Unit conversions, structured-quantity validation,
-                 # random selector, CSV import, OpenAPI contract, ops
+                 # random selector, CSV import, OpenAPI contract, ops,
+                 # list-endpoint query count
 ```
+
+## Performance
+
+`RecipeResponse.from` reads five lazy collections per row (steps, step tools,
+ingredients, replacements, tags), so a page of *N* recipes used to fire *N*+1
+selects per collection. `spring.jpa.properties.hibernate.default_batch_fetch_size=64`
+makes Hibernate load each one for up to 64 parents in a single
+`… where parent_id in (?, ?, …)`. Batch fetching rather than a collection
+`@EntityGraph` on purpose: join-fetching a collection with `Pageable` would push
+pagination into memory. `RecipeListQueryCountDataJpaTest` pins a page of 8 to
+≤ 12 queries.
 
 ## Security
 
