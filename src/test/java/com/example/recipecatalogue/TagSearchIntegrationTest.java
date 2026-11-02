@@ -1,5 +1,8 @@
 package com.example.recipecatalogue;
 
+import com.example.cataloguecommon.Csv;
+import com.example.cataloguecommon.tag.TagService;
+import com.example.recipecatalogue.Dto.Limits;
 import com.example.recipecatalogue.Repositories.RecipeRepository;
 import com.example.cataloguecommon.tag.TagRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -130,6 +133,69 @@ class TagSearchIntegrationTest {
         mvc.perform(post("/api/recipes").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"name\":\"Bad\",\"ingredients\":[{\"ingredientId\":-5}]}"))
                 .andExpect(status().isBadRequest());
+    }
+
+    // --- SECURITY.md N4: bounded request collections ------------------------------------------
+
+    private static String ingredientLines(int count) {
+        return java.util.stream.IntStream.rangeClosed(1, count)
+                .mapToObj(i -> "{\"ingredientId\":" + i + "}")
+                .collect(Collectors.joining(","));
+    }
+
+    @Test
+    void exactlyTheMaximumNumberOfIngredientLinesIsAccepted() throws Exception {
+        mvc.perform(post("/api/recipes").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Big\",\"ingredients\":[" + ingredientLines(Limits.INGREDIENTS) + "]}"))
+                .andExpect(status().isCreated());
+    }
+
+    @Test
+    void oneIngredientLineOverTheMaximumIsRejected() throws Exception {
+        mvc.perform(post("/api/recipes").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Huge\",\"ingredients\":[" + ingredientLines(Limits.INGREDIENTS + 1) + "]}"))
+                .andExpect(status().isBadRequest());
+        assertThat(recipeRepository.count()).isZero();
+    }
+
+    @Test
+    void tooManyTagsIsRejected() throws Exception {
+        String tags = java.util.stream.IntStream.rangeClosed(1, TagService.MAX_TAGS_PER_REQUEST + 1)
+                .mapToObj(i -> "\"t" + i + "\"").collect(Collectors.joining(","));
+        mvc.perform(post("/api/recipes").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"name\":\"Tagged\",\"ingredients\":[{\"ingredientId\":1}],\"tags\":[" + tags + "]}"))
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    void csvRecipeOverTheIngredientLimitIsReportedPerRowAndNotImported() throws Exception {
+        // The CSV path builds RecipeRequest objects directly, so Bean Validation never sees them:
+        // RecipeServiceImpl.apply() is what must refuse.
+        String tokens = java.util.stream.IntStream.rangeClosed(1, Limits.INGREDIENTS + 1)
+                .mapToObj(Integer::toString).collect(Collectors.joining(";"));
+        String csv = "name,creator,tags,ingredients\n\"Huge\",\"x\",\"\",\"" + tokens + "\"\n";
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "recipes.csv", "text/csv", csv.getBytes(StandardCharsets.UTF_8));
+
+        String body = mvc.perform(multipart("/api/recipes/import").file(file))
+                .andExpect(status().isOk())
+                .andReturn().getResponse().getContentAsString();
+
+        assertThat(body).contains("\"imported\":0", "\"skipped\":1", "at most " + Limits.INGREDIENTS + " ingredients");
+        assertThat(recipeRepository.count()).isZero();
+    }
+
+    @Test
+    void csvWithTooManyRowsIsRejectedOutright() throws Exception {
+        StringBuilder csv = new StringBuilder("name,creator,tags,ingredients\n");
+        for (int i = 0; i <= Csv.MAX_ROWS; i++) {
+            csv.append("r").append(i).append(",x,,1\n");
+        }
+        MockMultipartFile file = new MockMultipartFile(
+                "file", "recipes.csv", "text/csv", csv.toString().getBytes(StandardCharsets.UTF_8));
+
+        mvc.perform(multipart("/api/recipes/import").file(file)).andExpect(status().isBadRequest());
+        assertThat(recipeRepository.count()).isZero();
     }
 
     @Test

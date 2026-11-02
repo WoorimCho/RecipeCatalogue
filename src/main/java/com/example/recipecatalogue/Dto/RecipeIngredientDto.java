@@ -4,6 +4,7 @@ import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 
 import java.util.List;
 
@@ -22,12 +23,12 @@ import java.util.List;
  */
 public record RecipeIngredientDto(
         @NotNull @Positive Long ingredientId,
-        String quantity,
+        @Size(max = Limits.QUANTITY_LENGTH) String quantity,
         @PositiveOrZero Double amount,
-        String unit,
+        @Size(max = Limits.UNIT_INPUT_LENGTH) String unit,
         Boolean optional,
         Boolean replaceable,
-        @Valid List<ReplacementDto> replacements) {
+        @Valid @Size(max = Limits.REPLACEMENTS_PER_INGREDIENT) List<ReplacementDto> replacements) {
 
     public boolean isOptional() {
         return Boolean.TRUE.equals(optional);

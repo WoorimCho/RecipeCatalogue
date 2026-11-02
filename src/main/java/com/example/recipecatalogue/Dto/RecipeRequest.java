@@ -1,5 +1,6 @@
 package com.example.recipecatalogue.Dto;
 
+import com.example.cataloguecommon.tag.TagService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
@@ -15,12 +16,12 @@ import java.util.Set;
  * to target a specific variation slot.
  */
 public record RecipeRequest(
-        @NotBlank @Size(max = 255) String name,
-        String creator,
+        @NotBlank @Size(max = Limits.NAME_LENGTH) String name,
+        @Size(max = Limits.NAME_LENGTH) String creator,
         Integer version,
-        @Valid List<RecipeStepDto> steps,
-        @Valid List<RecipeIngredientDto> ingredients,
-        Set<String> tags) {
+        @Valid @Size(max = Limits.STEPS) List<RecipeStepDto> steps,
+        @Valid @Size(max = Limits.INGREDIENTS) List<RecipeIngredientDto> ingredients,
+        @Size(max = TagService.MAX_TAGS_PER_REQUEST) Set<@Size(max = TagService.MAX_TAG_LENGTH) String> tags) {
 
     public List<RecipeStepDto> stepsOrEmpty() {
         return steps == null ? List.of() : steps;

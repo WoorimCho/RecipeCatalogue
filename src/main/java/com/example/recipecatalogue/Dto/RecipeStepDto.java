@@ -1,6 +1,7 @@
 package com.example.recipecatalogue.Dto;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 
 import java.util.LinkedHashSet;
 import java.util.Set;
@@ -11,8 +12,8 @@ import java.util.Set;
  */
 public record RecipeStepDto(
         Integer position,
-        @NotBlank String text,
-        Set<String> tools) {
+        @NotBlank @Size(max = Limits.STEP_TEXT_LENGTH) String text,
+        @Size(max = Limits.TOOLS_PER_STEP) Set<@Size(max = Limits.TOOL_LENGTH) String> tools) {
 
     public Set<String> toolsOrEmpty() {
         return tools == null ? Set.of() : tools;

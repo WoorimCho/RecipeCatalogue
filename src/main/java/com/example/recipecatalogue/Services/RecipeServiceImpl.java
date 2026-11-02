@@ -1,5 +1,6 @@
 package com.example.recipecatalogue.Services;
 
+import com.example.recipecatalogue.Dto.Limits;
 import com.example.recipecatalogue.Dto.RecipeIngredientDto;
 import com.example.recipecatalogue.Dto.RecipeRequest;
 import com.example.recipecatalogue.Dto.RecipeResponse;
@@ -180,9 +181,40 @@ public class RecipeServiceImpl implements RecipeService {
         if (request.ingredientsOrEmpty().isEmpty()) {
             throw new IllegalArgumentException("a recipe needs at least one ingredient");
         }
+        checkLimits(request);
         recipe.replaceSteps(buildSteps(request.stepsOrEmpty()));
         recipe.replaceIngredients(buildIngredients(request.ingredientsOrEmpty()));
         recipe.replaceTags(tagService.resolve(request.tagsOrEmpty()));
+    }
+
+    /**
+     * The bounds the DTO annotations enforce for the JSON API (SECURITY.md N4),
+     * re-checked here because the CSV importer builds requests that never pass
+     * through Bean Validation. Tag count / length is enforced by
+     * {@link TagService#resolve}.
+     */
+    private static void checkLimits(RecipeRequest request) {
+        if (request.ingredientsOrEmpty().size() > Limits.INGREDIENTS) {
+            throw new IllegalArgumentException("a recipe can have at most " + Limits.INGREDIENTS + " ingredients");
+        }
+        if (request.stepsOrEmpty().size() > Limits.STEPS) {
+            throw new IllegalArgumentException("a recipe can have at most " + Limits.STEPS + " steps");
+        }
+        for (RecipeIngredientDto line : request.ingredientsOrEmpty()) {
+            if (line.replacementsOrEmpty().size() > Limits.REPLACEMENTS_PER_INGREDIENT) {
+                throw new IllegalArgumentException(
+                        "an ingredient can have at most " + Limits.REPLACEMENTS_PER_INGREDIENT + " replacements");
+            }
+        }
+        for (RecipeStepDto step : request.stepsOrEmpty()) {
+            if (step.toolsOrEmpty().size() > Limits.TOOLS_PER_STEP) {
+                throw new IllegalArgumentException("a step can list at most " + Limits.TOOLS_PER_STEP + " tools");
+            }
+            if (step.text() != null && step.text().length() > Limits.STEP_TEXT_LENGTH) {
+                throw new IllegalArgumentException(
+                        "a step's text is at most " + Limits.STEP_TEXT_LENGTH + " characters");
+            }
+        }
     }
 
     private static List<RecipeStep> buildSteps(List<RecipeStepDto> dtos) {

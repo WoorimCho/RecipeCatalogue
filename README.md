@@ -47,6 +47,12 @@ ingredient** (empty → 400 "a recipe needs at least one ingredient"); every
 400). Existence of the referenced ingredient is enforced at the UI, not here —
 the catalogues stay decoupled (no RecipeCatalogue → IngredientCatalogue call).
 
+**Limits** (finding N4; `Dto/Limits`): ≤ 200 steps (text ≤ 20 000 chars, ≤ 30
+tools of ≤ 100 chars), ≤ 100 ingredient lines (≤ 10 replacements each, `quantity`
+≤ 100 chars), ≤ 50 tags of ≤ 100 chars, `name` / `creator` ≤ 255. Over a limit →
+400 with the offending field; `RecipeServiceImpl.apply` re-checks the counts so a
+CSV row can't bypass Bean Validation. CSV: ≤ 5 000 rows, ≤ 100 fields per row.
+
 `/api/tags` mirrors IngredientCatalogue (`?prefix=` is a case-insensitive
 **substring** match — "thai" finds "cuisine:thai"). Contract at `/openapi.yaml`.
 `PageResponse<T>` envelope.
@@ -54,18 +60,26 @@ the catalogues stay decoupled (no RecipeCatalogue → IngredientCatalogue call).
 ## Run
 
 ```bash
-cd .. && docker compose up --build recipe-catalogue
+# once: database passwords live in a git-ignored .env, never in the repo
+cp .env.example .env              # then fill in MYSQL_ROOT_PASSWORD and MYSQL_PASSWORD (openssl rand -hex 24)
+
+cd .. && docker compose up --build recipe-catalogue    # root stack: reads ../.env
 
 docker compose up -d mysql        # local
-./gradlew bootRun
+./gradlew bootRun                 # Spring Boot's docker-compose support reads .env
 ```
+
+`compose.yaml` refuses to start while a password is unset or empty (finding H4).
+If a container from before this change still exists, its old password survives
+the new `.env` — `docker compose down -v` first (this wipes that dev database).
 
 ## Configuration (env)
 
 | Var | Default |
 |---|---|
 | `SPRING_DATASOURCE_URL` | `jdbc:mysql://localhost:3308/recipe_catalogue` |
-| `SPRING_DATASOURCE_USERNAME` / `_PASSWORD` | `myuser` / `secret` |
+| `SPRING_DATASOURCE_USERNAME` | `myuser` |
+| `SPRING_DATASOURCE_PASSWORD` | **none** — set from `MYSQL_PASSWORD` (`.env`); the app fails to connect without it |
 | `SERVER_PORT` | `8083` |
 | `ZIPKIN_ENDPOINT` | `http://localhost:9411/api/v2/spans` |
 
@@ -94,8 +108,11 @@ pagination into memory. `RecipeListQueryCountDataJpaTest` pins a page of 8 to
 
 ## Security
 
-No Spring Security — **every write is unauthenticated** (finding C2 in
-`../IngredientCatalogue/SECURITY.md`). Keep `:8083` off untrusted networks.
+Reads are open; every write (`POST` / `PUT` / `DELETE` / `PATCH` under `/api/**`)
+needs a valid HMAC `X-Internal-Auth` header from an internal caller — the shared
+`catalogue-common` `InternalAuthFilter` (finding C2, fixed 2026-09-09). The
+secret (`INTERNAL_AUTH_SECRET`) still has a **public dev default** (finding N1):
+set a real one before exposing `:8083`. See `../IngredientCatalogue/SECURITY.md`.
 
 ## Status
 
