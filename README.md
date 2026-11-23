@@ -60,8 +60,8 @@ CSV row can't bypass Bean Validation. CSV: ≤ 5 000 rows, ≤ 100 fields per ro
 ## Run
 
 ```bash
-# once: database passwords live in a git-ignored .env, never in the repo
-cp .env.example .env              # then fill in MYSQL_ROOT_PASSWORD and MYSQL_PASSWORD (openssl rand -hex 24)
+# once: DB passwords + the HMAC secret live in a git-ignored .env, never in the repo
+cp .env.example .env              # fill in MYSQL_ROOT_PASSWORD, MYSQL_PASSWORD, INTERNAL_AUTH_SECRET (openssl rand -hex 24 each)
 
 cd .. && docker compose up --build recipe-catalogue    # root stack: reads ../.env
 
@@ -69,7 +69,9 @@ docker compose up -d mysql        # local
 ./gradlew bootRun                 # Spring Boot's docker-compose support reads .env
 ```
 
-`compose.yaml` refuses to start while a password is unset or empty (finding H4).
+`compose.yaml` refuses to start while a password or the secret is unset or empty
+(findings H4, N1). `bootRun` also reads `INTERNAL_AUTH_SECRET` from `.env` (via
+`spring.config.import`), so one file serves both.
 If a container from before this change still exists, its old password survives
 the new `.env` — `docker compose down -v` first (this wipes that dev database).
 
@@ -80,6 +82,7 @@ the new `.env` — `docker compose down -v` first (this wipes that dev database)
 | `SPRING_DATASOURCE_URL` | `jdbc:mysql://localhost:3308/recipe_catalogue` |
 | `SPRING_DATASOURCE_USERNAME` | `myuser` |
 | `SPRING_DATASOURCE_PASSWORD` | **none** — set from `MYSQL_PASSWORD` (`.env`); the app fails to connect without it |
+| `INTERNAL_AUTH_SECRET` | **none** — the HMAC secret every service shares (at least 32 characters), from `.env`; the service refuses to start without it (finding N1) |
 | `SERVER_PORT` | `8083` |
 | `ZIPKIN_ENDPOINT` | `http://localhost:9411/api/v2/spans` |
 
@@ -111,8 +114,10 @@ pagination into memory. `RecipeListQueryCountDataJpaTest` pins a page of 8 to
 Reads are open; every write (`POST` / `PUT` / `DELETE` / `PATCH` under `/api/**`)
 needs a valid HMAC `X-Internal-Auth` header from an internal caller — the shared
 `catalogue-common` `InternalAuthFilter` (finding C2, fixed 2026-09-09). The
-secret (`INTERNAL_AUTH_SECRET`) still has a **public dev default** (finding N1):
-set a real one before exposing `:8083`. See `../IngredientCatalogue/SECURITY.md`.
+secret (`INTERNAL_AUTH_SECRET`) has **no default** (finding N1, fixed 2026-11-02): the
+service refuses to start without a random value of at least 32 characters, from
+`.env` locally or the environment in a container. See
+`../IngredientCatalogue/SECURITY.md`.
 
 ## Status
 

@@ -22,3 +22,6 @@ Thumbs.db
 Dockerfile
 .dockerignore
 compose.yaml
+
+# Local secrets
+.env

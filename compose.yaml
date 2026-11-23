@@ -1,11 +1,12 @@
 # Local dev database for RecipeCatalogue, plus the service itself under the
 # "full" profile.
 #
-# No credentials live in this file. Copy .env.example to .env (git-ignored), set
-# the two passwords (`openssl rand -hex 24` makes a good one) and Compose does the
-# rest: it refuses to start while either is unset or empty. Spring Boot's
-# docker-compose support (the IDE / `./gradlew bootRun`) reads the same .env and
-# hands the app its JDBC credentials straight from the running container.
+# No credentials live in this file. Copy .env.example to .env (git-ignored) and
+# fill in the two passwords and the shared INTERNAL_AUTH_SECRET (generate each
+# with `openssl rand -hex 24`); Compose refuses to start while any is unset or
+# empty. Spring Boot's docker-compose support (the IDE / `./gradlew bootRun`)
+# reads the same .env and hands the app its JDBC credentials straight from the
+# running container; the app picks INTERNAL_AUTH_SECRET up from .env itself.
 services:
   mysql:
     image: 'mysql:8.4'
@@ -41,6 +42,7 @@ services:
       - 'SPRING_DATASOURCE_URL=jdbc:mysql://mysql:3306/recipe_catalogue?allowPublicKeyRetrieval=true&useSSL=false'
       - 'SPRING_DATASOURCE_USERNAME=myuser'
       - 'SPRING_DATASOURCE_PASSWORD=${MYSQL_PASSWORD:?set in .env}'
+      - 'INTERNAL_AUTH_SECRET=${INTERNAL_AUTH_SECRET:?set in .env}'
     ports:
       - '127.0.0.1:8083:8083'
     depends_on:
